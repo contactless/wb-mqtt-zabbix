@@ -1,0 +1,5 @@
+argparse==1.2.1
+click==5.1
+paho-mqtt==1.1
+wsgiref==0.1.2
+zbxsend==0.1.6
