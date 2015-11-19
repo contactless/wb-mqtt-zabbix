@@ -81,7 +81,6 @@ class MQTTHandler(object):
 
     def send_value(self, control):
         log.debug("SEND: %s = %s" % (control.topic, control.value))
-        # XXX problem: may fail
         key_fmt = "mqtt.lld.str_value[%s]" if control.is_str() else "mqtt.lld.value[%s]"
         if not self.send(key_fmt % control.topic, control.value) and not control.value_sent:
             self._pending_retries.add(control)
