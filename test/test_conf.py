@@ -1,5 +1,5 @@
 from cStringIO import StringIO
-from wb_mqtt_zabbix import HandlerConf, CONF
+from wb_mqtt_zabbix.conf import HandlerConf, CONF
 from nose.tools import eq_
 
 EMPTY_CONF = "{}"
