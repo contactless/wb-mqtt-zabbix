@@ -32,16 +32,24 @@ class FakeMQTT(object):
         self.on_message(self, None, FakeMsg(topic, payload))
 
 mqtt = None
+fail_keys = []
 
 
 def setup_func():
-    global mqtt
+    global mqtt, fail_keys
     mqtt = FakeMQTT()
+    fail_keys = []
 
 
 def send_to_zabbix(metrics, zabbix_host, zabbix_port):
-    mqtt.rec("send_to_zabbix: %s @ %s:%d" % (", ".join(map(repr, metrics)),
-                                             zabbix_host, zabbix_port))
+    r = True
+    fail_str = ""
+    if any(m.key in fail_keys for m in metrics):
+        fail_str = "FAIL: "
+        r = False
+    mqtt.rec("send_to_zabbix: %s%s @ %s:%d" % (fail_str, ", ".join(map(repr, metrics)),
+                                               zabbix_host, zabbix_port))
+    return r
 
 
 def with_handler(f):
@@ -86,6 +94,8 @@ def test_handler(handler):
         "\"{#MQTTTOPIC}\": \"/devices/abc/controls/foobar\"}]}') @ localhost:10051",
         "send_to_zabbix: Metric('Zabbix server', " +
         "'mqtt.lld.value[/devices/abc/controls/foobar]', '42') @ localhost:10051")
+    handler.process_periodic_retries()
+    mqtt.check()
 
 
 @with_handler
@@ -106,3 +116,33 @@ def test_non_numeric(handler):
     mqtt.check(
         "send_to_zabbix: Metric('Zabbix server', " +
         "'mqtt.lld.str_value[/devices/abc/controls/def]', '1;1;1') @ localhost:10051")
+    handler.process_periodic_retries()
+    mqtt.check()
+
+
+@with_handler
+def test_retry(handler):
+    mqtt.recv("/devices/abc/controls/def", "123")
+    mqtt.recv("/devices/abc/controls/def/meta/type", "temperature")
+    fail_keys.append("mqtt.lld.value[/devices/abc/controls/def]")
+    mqtt.recv("/retain_hack", "1")
+    mqtt.check(
+        "send_to_zabbix: Metric('Zabbix server', 'mqtt.lld', " +
+        "'{\"data\": [{\"{#MQTTNAME}\": \"def\", " +
+        "\"{#MQTTTOPIC}\": \"/devices/abc/controls/def\"}]}') @ localhost:10051",
+        "send_to_zabbix: FAIL: Metric('Zabbix server', " +
+        "'mqtt.lld.value[/devices/abc/controls/def]', '123') @ localhost:10051")
+
+    handler.process_periodic_retries()
+    mqtt.check(
+        "send_to_zabbix: FAIL: Metric('Zabbix server', " +
+        "'mqtt.lld.value[/devices/abc/controls/def]', '123') @ localhost:10051")
+
+    fail_keys.pop()
+    handler.process_periodic_retries()
+    mqtt.check(
+        "send_to_zabbix: Metric('Zabbix server', " +
+        "'mqtt.lld.value[/devices/abc/controls/def]', '123') @ localhost:10051")
+
+    handler.process_periodic_retries()
+    mqtt.check()

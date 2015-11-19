@@ -8,10 +8,6 @@ from .conf import HandlerConf
 log = logging.getLogger(__name__)
 
 
-STATE_PENDING = 0
-STATE_REGISTERED = 1
-
-
 STRING_TYPES = ["text", "rgb"]
 SKIP_TYPES = ["pushbutton"]
 
@@ -28,6 +24,7 @@ class Control(object):
         self.topic = topic
         self.value = value
         self.value_type = value_type
+        self.value_sent = False
 
     def is_complete(self):
         return self.value is not None and self.value_type is not None
@@ -53,13 +50,13 @@ class MQTTHandler(object):
             kwargs["debug"] = True
         self.conf = HandlerConf(**kwargs)
         if self.conf.debug:
-            print "aaaa %r" % logging.getLogger("")
             logging.getLogger("").setLevel(logging.DEBUG)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self._controls = {}
         self._ready = False
         self._postponed = []
+        self._pending_retries = set()
 
     def send(self, key, value):
         return zbxsend.send_to_zabbix(
@@ -86,7 +83,11 @@ class MQTTHandler(object):
         log.debug("SEND: %s = %s" % (control.topic, control.value))
         # XXX problem: may fail
         key_fmt = "mqtt.lld.str_value[%s]" if control.is_str() else "mqtt.lld.value[%s]"
-        self.send(key_fmt % control.topic, control.value)
+        if not self.send(key_fmt % control.topic, control.value) and not control.value_sent:
+            self._pending_retries.add(control)
+        else:
+            control.value_sent = True
+            self._pending_retries.discard(control)
 
     def _handle_message(self, msg):
         if not mqtt.topic_matches_sub("/devices/+/controls/+", msg.topic) and \
@@ -125,7 +126,6 @@ class MQTTHandler(object):
         self.send_value(control)
 
     def on_message(self, client, userdata, msg):
-        print "ZZZ %r" % msg.topic
         if self._ready:
             self._handle_message(msg)
             return
@@ -143,3 +143,8 @@ class MQTTHandler(object):
 
     def connect(self):
         self.client.connect(self.conf.mqtt_host, self.conf.mqtt_port)
+
+    def process_periodic_retries(self):
+        for control in sorted(self._pending_retries, key=lambda c: c.topic):
+            log.debug("retrying sending %s = %s" % (control.topic, control.value))
+            self.send_value(control)

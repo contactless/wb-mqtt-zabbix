@@ -1,4 +1,5 @@
 # FROM: https://github.com/pistolero/zbxsend
+import re
 import struct
 import time
 import socket
@@ -62,7 +63,10 @@ def send_to_zabbix(metrics, zabbix_host='127.0.0.1', zabbix_port=10051, timeout=
         if resp.get('response') != 'success':
             logger.error('Got error from Zabbix: %s', resp)
             return False
-        return not resp.get('failed')
+        for part in re.split(r";\s*", resp.get('info', '')):
+            if part.startswith('failed: ') and part != 'failed: 0':
+                return False
+        return True
     except socket.timeout, e:
         logger.error("zabbix timeout: " + str(e))
         return False

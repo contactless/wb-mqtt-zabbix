@@ -2,8 +2,11 @@
 import click
 import paho.mqtt.client as mqtt
 import logging
+from time import time
 from wb_mqtt_zabbix import MQTTHandler, mqtt_dev_id
 
+CYCLE_DURATION = 1.1
+RETRY_PERIOD = 5
 PORT_VALUE = click.IntRange(1, 65535)
 
 logging.basicConfig()
@@ -25,7 +28,12 @@ def zbridge(**kwargs):
     client = mqtt.Client(mqtt_dev_id)
     handler = MQTTHandler(client, **{k: v for k, v in kwargs.items() if v is not None})
     handler.connect()
-    client.loop_forever()
+    last_check = time()
+    while client.loop(timeout=CYCLE_DURATION) == mqtt.MQTT_ERR_SUCCESS:
+        ts = time()
+        if ts - last_check >= RETRY_PERIOD:
+            handler.process_periodic_retries()
+            last_check = ts
 
 if __name__ == "__main__":
     zbridge()
