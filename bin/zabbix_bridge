@@ -1,27 +1,25 @@
 #!/usr/bin/env python
 import click
 import paho.mqtt.client as mqtt
-import logging
 from wb_mqtt_zabbix import MQTTHandler
 
 PORT_VALUE = click.IntRange(1, 65535)
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 @click.command()
-@click.option("-h", "--mqtt-host", default="localhost", help="MQTT host")
-@click.option("-p", "--mqtt-port", type=PORT_VALUE, default=1883, help="MQTT port")
-@click.option("-t", "--mqtt-topic", default="#", help="MQTT subsctiption topic")
-@click.option("-H", "--zabbix-server", default="localhost", help="Zabbix server")
-@click.option("-P", "--zabbix-port", type=PORT_VALUE, default=10051, help="Zabbix port")
-@click.option("-z", "--zabbix-host-name", default="Zabbix server",
-              help="Host name as registered in Zabbix frontend")
-def zbridge(mqtt_host, mqtt_port, **kwargs):
+@click.option("-c", "--conf-file", default="/etc/wb-mqtt-zabbix.conf", help="Config file")
+@click.option("-d", "--debug", is_flag=True)
+@click.option("-h", "--mqtt-host", help="MQTT host")
+@click.option("-p", "--mqtt-port", type=PORT_VALUE, help="MQTT port")
+@click.option("-t", "--mqtt-topic", help="MQTT subsctiption topic")
+@click.option("-H", "--zabbix-server", help="Zabbix server")
+@click.option("-P", "--zabbix-port", type=PORT_VALUE, help="Zabbix port")
+@click.option("-z", "--zabbix-host-name", help="Host name as registered in Zabbix frontend")
+def zbridge(**kwargs):
     """Zabbix bridge for Wiren Board."""
     client = mqtt.Client()
-    MQTTHandler(client, **kwargs)
-    client.connect(mqtt_host, mqtt_port)
+    handler = MQTTHandler(client, **{k: v for k, v in kwargs.items() if v is not None})
+    handler.connect()
     client.loop_forever()
 
 if __name__ == "__main__":
