@@ -1,0 +1,5 @@
+wb-mqtt-zabbix (0.1) unstable; urgency=low
+
+  * Initial debianization
+
+ -- Ivan Shvedunov <ivan4th@gmail.com>  Thu, 19 Nov 2015 09:16:36 +0300

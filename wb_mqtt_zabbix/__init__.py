@@ -1,15 +1,8 @@
-#!/usr/bin/env python
 import json
-import click
-import logging
-import paho.mqtt.client as mqtt
 from zbxsend import Metric, send_to_zabbix
+import paho.mqtt.client as mqtt
 
-PORT_VALUE = click.IntRange(1, 65535)
 REG_DELAY = 1
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class MQTTHandler(object):
@@ -47,22 +40,3 @@ class MQTTHandler(object):
             self.register_control(msg.topic)
             self.reg_map.add(msg.topic)
         self.send_value(msg.topic, msg.payload)
-
-
-@click.command()
-@click.option("-h", "--mqtt-host", default="localhost", help="MQTT host")
-@click.option("-p", "--mqtt-port", type=PORT_VALUE, default=1883, help="MQTT port")
-@click.option("-t", "--mqtt-topic", default="#", help="MQTT subsctiption topic")
-@click.option("-H", "--zabbix-server", default="localhost", help="Zabbix server")
-@click.option("-P", "--zabbix-port", type=PORT_VALUE, default=10051, help="Zabbix port")
-@click.option("-z", "--zabbix-host-name", default="Zabbix server",
-              help="Host name as registered in Zabbix frontend")
-def zbridge(mqtt_host, mqtt_port, **kwargs):
-    """Zabbix bridge for Wiren Board."""
-    client = mqtt.Client()
-    MQTTHandler(client, **kwargs)
-    client.connect(mqtt_host, mqtt_port)
-    client.loop_forever()
-
-if __name__ == "__main__":
-    zbridge()
