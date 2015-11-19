@@ -1,0 +1,2 @@
+class ZabbixBridgeError(Exception):
+    pass
