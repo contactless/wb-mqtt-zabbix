@@ -11,7 +11,7 @@ REG_DELAY = 1
 
 CONF = [("mqtt_host", "localhost"),
         ("mqtt_port", 1883),
-        ("mqtt_topic", "#"),
+        ("mqtt_topics", "#"),
         ("zabbix_server", "localhost"),
         ("zabbix_port", 10051),
         ("zabbix_host_name", "Zabbix server"),
@@ -40,7 +40,11 @@ def load_config(conf_file):
 class HandlerConf(namedtuple("HandlerConf", CONF_NAMES)):
     def __new__(cls, conf_file, **kwargs):
         conf = load_config(conf_file)
-        conf.update(kwargs)
+        for k, v in kwargs.items():
+            if k in conf and isinstance(v, list) or isinstance(v, tuple):
+                conf[k].extend(v)
+            else:
+                conf[k] = v
         return super(HandlerConf, cls).__new__(
             cls, **{k: v for k, v in conf.items() if k in CONF_NAMES})
 
@@ -62,8 +66,11 @@ class MQTTHandler(object):
                               self.conf.zabbix_server, self.conf.zabbix_port)
 
     def on_connect(self, client, userdata, flags, rc):
-        log.debug("Connected with result code %s -- subscribing to %s" % (rc, self.conf.mqtt_topic))
-        self.client.subscribe(unicode(self.conf.mqtt_topic).encode("utf-8"))
+        log.debug("Connected with result code %s" % rc)
+        for topic in self.conf.mqtt_topics:
+            t = unicode(topic).encode("utf-8")
+            log.debug("Subscribing to %s" % t)
+            self.client.subscribe(t)
 
     def register_control(self, topic):
         log.debug("REG: %s", topic)

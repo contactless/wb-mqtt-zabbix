@@ -11,7 +11,9 @@ PORT_VALUE = click.IntRange(1, 65535)
 @click.option("-d", "--debug", is_flag=True)
 @click.option("-h", "--mqtt-host", help="MQTT host")
 @click.option("-p", "--mqtt-port", type=PORT_VALUE, help="MQTT port")
-@click.option("-t", "--mqtt-topic", help="MQTT subsctiption topic")
+@click.option("-t", "--mqtt-topic", "mqtt_topics",
+              help="MQTT subsctiption topic (may specify more than once)",
+              multiple=True)
 @click.option("-H", "--zabbix-server", help="Zabbix server")
 @click.option("-P", "--zabbix-port", type=PORT_VALUE, help="Zabbix port")
 @click.option("-z", "--zabbix-host-name", help="Host name as registered in Zabbix frontend")
