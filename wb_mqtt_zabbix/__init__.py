@@ -1,8 +1,7 @@
 import json
-import os.path
 import logging
 from collections import namedtuple
-from zbxsend import Metric, send_to_zabbix
+import zbxsend
 import paho.mqtt.client as mqtt
 
 log = logging.getLogger(__name__)
@@ -11,7 +10,7 @@ REG_DELAY = 1
 
 CONF = [("mqtt_host", "localhost"),
         ("mqtt_port", 1883),
-        ("mqtt_topics", "#"),
+        ("mqtt_topics", []),
         ("zabbix_server", "localhost"),
         ("zabbix_port", 10051),
         ("zabbix_host_name", "Zabbix server"),
@@ -25,20 +24,19 @@ class ZabbixBridgeError(Exception):
 
 def load_config(conf_file):
     conf = dict(CONF)
-    if not conf_file or not os.path.exists(conf_file):
-        logging.debug("config file is not specified or doesn't exist")
+    if not conf_file:
+        logging.debug("config file not specified")
         return conf
     log.debug("loading conf file: %s", conf_file)
-    with open(conf_file) as f:
-        loaded = json.load(f)
-        if not isinstance(loaded, dict):
-            raise ZabbixBridgeError("bad configuration file")
-        conf.update(loaded)
-        return conf
+    loaded = json.load(conf_file)
+    if not isinstance(loaded, dict):
+        raise ZabbixBridgeError("bad configuration file")
+    conf.update(loaded)
+    return conf
 
 
 class HandlerConf(namedtuple("HandlerConf", CONF_NAMES)):
-    def __new__(cls, conf_file, **kwargs):
+    def __new__(cls, conf_file=None, **kwargs):
         conf = load_config(conf_file)
         for k, v in kwargs.items():
             if k in conf and isinstance(v, list) or isinstance(v, tuple):
@@ -50,24 +48,25 @@ class HandlerConf(namedtuple("HandlerConf", CONF_NAMES)):
 
 
 class MQTTHandler(object):
-    def __init__(self, client, debug, **kwargs):
+    def __init__(self, client, debug=False, **kwargs):
         self.client = client
         if debug:
             kwargs["debug"] = True
         self.conf = HandlerConf(**kwargs)
         if self.conf.debug:
-            logging.basicConfig(level=logging.DEBUG)
+            logging.getLogger("").setLevel(logging.DEBUG)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.reg_map = set()
 
     def send(self, key, value):
-        return send_to_zabbix([Metric(self.conf.zabbix_host_name, key, value)],
-                              self.conf.zabbix_server, self.conf.zabbix_port)
+        return zbxsend.send_to_zabbix(
+            [zbxsend.Metric(self.conf.zabbix_host_name, key, value)],
+            self.conf.zabbix_server, self.conf.zabbix_port)
 
     def on_connect(self, client, userdata, flags, rc):
         log.debug("Connected with result code %s" % rc)
-        for topic in self.conf.mqtt_topics:
+        for topic in (self.conf.mqtt_topics or ["#"]):
             t = unicode(topic).encode("utf-8")
             log.debug("Subscribing to %s" % t)
             self.client.subscribe(t)
