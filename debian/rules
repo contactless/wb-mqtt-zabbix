@@ -4,4 +4,4 @@
 	dh $@ --with python-virtualenv
 
 override_dh_virtualenv:
-	dh_virtualenv --python '/usr/bin/python2.7' --use-system-packages --setuptools
+	dh_virtualenv --python '/usr/bin/python2.7' --use-system-packages --setuptools --no-test
