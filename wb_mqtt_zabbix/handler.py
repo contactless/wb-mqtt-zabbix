@@ -20,11 +20,13 @@ def classify_topic(topic):
 
 
 class Control(object):
-    def __init__(self, topic, value, value_type):
+    def __init__(self, topic, value, value_type, send):
         self.topic = topic
         self.value = value
         self.value_type = value_type
-        self.value_sent = False
+        self._send = send
+        self._value_sent = False
+        self._retry_pending = False
 
     def is_complete(self):
         return self.value is not None and self.value_type is not None
@@ -42,6 +44,26 @@ class Control(object):
     def is_str(self):
         return self.value_type in STRING_TYPES
 
+    def register(self):
+        log.debug("REG: %s", self.topic)
+        d = dict(data=[{"{#MQTTNAME}": self.topic.rsplit("/", 1)[-1] or self.topic,
+                        "{#MQTTTOPIC}": self.topic}])
+        self._send("mqtt.lld_str" if self.is_str() else "mqtt.lld",
+                   json.dumps(d, sort_keys=True))
+
+    def send_value(self):
+        log.debug("SEND: %s = %s" % (self.topic, self.value))
+        key_fmt = "mqtt.lld.str_value[%s]" if self.is_str() else "mqtt.lld.value[%s]"
+        if not self._send(key_fmt % self.topic, self.value) and not self._value_sent:
+            self._retry_pending = True
+        else:
+            self._value_sent = True
+            self._retry_pending = False
+
+    def maybe_retry(self):
+        if self._retry_pending:
+            self.send_value()
+
 
 class MQTTHandler(object):
     def __init__(self, client, debug=False, **kwargs):
@@ -56,12 +78,15 @@ class MQTTHandler(object):
         self._controls = {}
         self._ready = False
         self._postponed = []
-        self._pending_retries = set()
+        self._retry_pending = False
 
     def send(self, key, value):
-        return zbxsend.send_to_zabbix(
+        r = zbxsend.send_to_zabbix(
             [zbxsend.Metric(self.conf.zabbix_host_name, key, value)],
             self.conf.zabbix_server, self.conf.zabbix_port)
+        if not r:
+            self._retry_pending = True
+        return r
 
     def on_connect(self, client, userdata, flags, rc):
         log.debug("Connected with result code %s" % rc)
@@ -71,22 +96,6 @@ class MQTTHandler(object):
             self.client.subscribe(t)
         self.client.subscribe(util.retain_hack_topic())
         self.client.publish(util.retain_hack_topic(), "1")
-
-    def register_control(self, control):
-        log.debug("REG: %s", control.topic)
-        d = dict(data=[{"{#MQTTNAME}": control.topic.rsplit("/", 1)[-1] or control.topic,
-                        "{#MQTTTOPIC}": control.topic}])
-        self.send("mqtt.lld_str" if control.is_str() else "mqtt.lld",
-                  json.dumps(d, sort_keys=True))
-
-    def send_value(self, control):
-        log.debug("SEND: %s = %s" % (control.topic, control.value))
-        key_fmt = "mqtt.lld.str_value[%s]" if control.is_str() else "mqtt.lld.value[%s]"
-        if not self.send(key_fmt % control.topic, control.value) and not control.value_sent:
-            self._pending_retries.add(control)
-        else:
-            control.value_sent = True
-            self._pending_retries.discard(control)
 
     def _handle_message(self, msg):
         if not mqtt.topic_matches_sub("/devices/+/controls/+", msg.topic) and \
@@ -100,7 +109,7 @@ class MQTTHandler(object):
             cur_value = msg.payload
             cur_type = None
         if value_topic not in self._controls:
-            self._controls[value_topic] = Control(value_topic, cur_value, cur_type)
+            self._controls[value_topic] = Control(value_topic, cur_value, cur_type, send=self.send)
             # control cannot be complete at this point
             return
 
@@ -115,14 +124,14 @@ class MQTTHandler(object):
             if control.should_skip():
                 log.debug("skipping control: %s" % control.topic)
                 return
-            self.register_control(control)
-            self.send_value(control)
+            control.register()
+            control.send_value()
             return
         elif is_type_topic:
             return
 
         control.update(cur_value, cur_type)
-        self.send_value(control)
+        control.send_value()
 
     def on_message(self, client, userdata, msg):
         if self._ready:
@@ -144,6 +153,9 @@ class MQTTHandler(object):
         self.client.connect(self.conf.mqtt_host, self.conf.mqtt_port)
 
     def process_periodic_retries(self):
-        for control in sorted(self._pending_retries, key=lambda c: c.topic):
+        if not self._retry_pending:
+            return
+        self._retry_pending = False
+        for control in sorted(self._controls.values(), key=lambda c: c.topic):
             log.debug("retrying sending %s = %s" % (control.topic, control.value))
-            self.send_value(control)
+            control.maybe_retry()
