@@ -35,6 +35,7 @@ def cli():
 @click.option("--no-hosts", is_flag=True, help="Don't import hosts")
 @handle_errors
 def deploy(url, login, password, no_hosts):
+    """Deploy Zabbix templates and hosts"""
     deploy = Deploy(url, login, password)
     deploy.deploy_templates()
     if not no_hosts:
@@ -56,7 +57,7 @@ def deploy(url, login, password, no_hosts):
 @click.option("-r", "--retry-interval", help="Retry interval")
 @handle_errors
 def run(**kwargs):
-    """Zabbix bridge for Wiren Board."""
+    """Run Zabbix bridge"""
     client = mqtt.Client(mqtt_dev_id)
     handler = MQTTHandler(client, **{k: v for k, v in kwargs.items() if v is not None})
     handler.connect()
