@@ -2,11 +2,9 @@
 import click
 import paho.mqtt.client as mqtt
 import logging
-from time import time
 from wb_mqtt_zabbix import MQTTHandler, mqtt_dev_id
 
-CYCLE_DURATION = 1.1
-RETRY_PERIOD = 5
+CYCLE_DURATION = 1
 PORT_VALUE = click.IntRange(1, 65535)
 
 logging.basicConfig()
@@ -23,17 +21,15 @@ logging.basicConfig()
 @click.option("-H", "--zabbix-server", help="Zabbix server")
 @click.option("-P", "--zabbix-port", type=PORT_VALUE, help="Zabbix port")
 @click.option("-z", "--zabbix-host-name", help="Host name as registered in Zabbix frontend")
+@click.option("-i", "--min-interval", help="Minimum topic refresh interval")
+@click.option("-r", "--retry-interval", help="Retry interval")
 def zbridge(**kwargs):
     """Zabbix bridge for Wiren Board."""
     client = mqtt.Client(mqtt_dev_id)
     handler = MQTTHandler(client, **{k: v for k, v in kwargs.items() if v is not None})
     handler.connect()
-    last_check = time()
     while client.loop(timeout=CYCLE_DURATION) == mqtt.MQTT_ERR_SUCCESS:
-        ts = time()
-        if ts - last_check >= RETRY_PERIOD:
-            handler.process_periodic_retries()
-            last_check = ts
+        handler.process_periodic_retries()
 
 if __name__ == "__main__":
     zbridge()

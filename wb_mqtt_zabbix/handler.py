@@ -1,4 +1,5 @@
 import json
+import time
 import logging
 import paho.mqtt.client as mqtt
 import wb_mqtt_zabbix.util as util
@@ -19,14 +20,33 @@ def classify_topic(topic):
         return False, topic
 
 
+class TimeInterval(object):
+    def __init__(self, interval, zero_ok=True):
+        self._interval = interval
+        self._zero_ok = zero_ok
+        self._ts = None
+
+    def check(self):
+        if not self._interval:
+            return self._zero_ok
+
+        ts = time.time()
+        if self._ts is not None and ts - self._ts < self._interval:
+            return False
+        self._ts = time.time()
+        return True
+
+
 class Control(object):
-    def __init__(self, topic, value, value_type, send):
+    def __init__(self, topic, value, value_type, send, min_interval):
         self.topic = topic
         self.value = value
         self.value_type = value_type
         self._send = send
+        self._send_interval = TimeInterval(min_interval)
         self._value_sent = False
         self._retry_pending = False
+        self._retry_ts = None
 
     def is_complete(self):
         return self.value is not None and self.value_type is not None
@@ -52,8 +72,11 @@ class Control(object):
                    json.dumps(d, sort_keys=True))
 
     def send_value(self):
-        log.debug("SEND: %s = %s" % (self.topic, self.value))
         key_fmt = "mqtt.lld.str_value[%s]" if self.is_str() else "mqtt.lld.value[%s]"
+        if not self._send_interval.check():
+            log.debug("SKIP: %s = %s" % (self.topic, self.value))
+            return
+        log.debug("SEND: %s = %s" % (self.topic, self.value))
         if not self._send(key_fmt % self.topic, self.value) and not self._value_sent:
             self._retry_pending = True
         else:
@@ -79,6 +102,7 @@ class MQTTHandler(object):
         self._ready = False
         self._postponed = []
         self._retry_pending = False
+        self._retry_interval = TimeInterval(self.conf.retry_interval, False)
 
     def send(self, key, value):
         r = zbxsend.send_to_zabbix(
@@ -109,7 +133,9 @@ class MQTTHandler(object):
             cur_value = msg.payload
             cur_type = None
         if value_topic not in self._controls:
-            self._controls[value_topic] = Control(value_topic, cur_value, cur_type, send=self.send)
+            self._controls[value_topic] = Control(
+                value_topic, cur_value, cur_type,
+                send=self.send, min_interval=self.conf.min_interval)
             # control cannot be complete at this point
             return
 
@@ -153,7 +179,7 @@ class MQTTHandler(object):
         self.client.connect(self.conf.mqtt_host, self.conf.mqtt_port)
 
     def process_periodic_retries(self):
-        if not self._retry_pending:
+        if not self._retry_pending or not self._retry_interval.check():
             return
         self._retry_pending = False
         for control in sorted(self._controls.values(), key=lambda c: c.topic):

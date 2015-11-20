@@ -71,7 +71,7 @@ def with_handler(f=None, **kwargs):
         @patch("time.time", lambda: current_time)
         def wrap():
             global handler
-            handler = MQTTHandler(mqtt, **kwargs)
+            handler = MQTTHandler(mqtt, retry_interval=5, **kwargs)
             handler.connect()
             mqtt.check(
                 "connect: localhost:1883",
@@ -166,7 +166,38 @@ def test_retry():
 
     fail_keys.pop()
     handler.process_periodic_retries()
+    mqtt.check()  # not enough time elapsed
+
+    elapse(5)
+    handler.process_periodic_retries()
     check_send("def", "123")
 
+    elapse(5)
     handler.process_periodic_retries()
     mqtt.check()
+
+
+@with_handler(min_interval=10)
+def test_rate_limit():
+    mqtt.recv("/devices/abc/controls/def", "123")
+    mqtt.recv("/devices/abc/controls/def/meta/type", "temperature")
+    mqtt.recv("/retain_hack", "1")
+    check_reg("def", "123")
+
+    mqtt.recv("/devices/abc/controls/def", "45.6")
+    mqtt.check()  # oops, rate limit exceeded
+
+    elapse(5)
+    mqtt.recv("/devices/abc/controls/def", "46")
+    mqtt.check()  # still not enough
+
+    elapse(5)
+    mqtt.recv("/devices/abc/controls/def", "146")
+    check_send("def", "146")
+
+    mqtt.recv("/devices/abc/controls/def", "42")
+    mqtt.check()
+
+    elapse(13)
+    mqtt.recv("/devices/abc/controls/def", "42")
+    check_send("def", "42")
