@@ -66,7 +66,12 @@ class Control(object):
 
     def register(self):
         log.debug("REG: %s", self.topic)
-        d = dict(data=[{"{#MQTTNAME}": self.topic.rsplit("/", 1)[-1] or self.topic,
+        topic_parts = self.topic.split("/")
+        if len(topic_parts) != 5:
+            mqtt_name = topic_parts[-1] or self.topic
+        else:
+            mqtt_name = topic_parts[2] + " / " + topic_parts[4]
+        d = dict(data=[{"{#MQTTNAME}": mqtt_name,
                         "{#MQTTTOPIC}": self.topic}])
         self._send("mqtt.lld_str" if self.is_str() else "mqtt.lld",
                    json.dumps(d, sort_keys=True))

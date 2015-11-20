@@ -89,7 +89,7 @@ def with_handler(f=None, **kwargs):
 def check_reg(name, value, send_fail=False):
     mqtt.check(
         "send_to_zabbix: Metric('Zabbix server', 'mqtt.lld', " +
-        "'{\"data\": [{\"{#MQTTNAME}\": \"%s\", " % name +
+        "'{\"data\": [{\"{#MQTTNAME}\": \"abc / %s\", " % name +
         "\"{#MQTTTOPIC}\": \"/devices/abc/controls/%s\"}]}') @ localhost:10051" % name,
         "send_to_zabbix: %sMetric('Zabbix server', " % ("FAIL: " if send_fail else "") +
         "'mqtt.lld.value[/devices/abc/controls/%s]', '%s') @ localhost:10051" % (name, value))
@@ -98,7 +98,7 @@ def check_reg(name, value, send_fail=False):
 def check_reg_str(name, value, send_fail=False):
     mqtt.check(
         "send_to_zabbix: Metric('Zabbix server', 'mqtt.lld_str', " +
-        "'{\"data\": [{\"{#MQTTNAME}\": \"%s\", " % name +
+        "'{\"data\": [{\"{#MQTTNAME}\": \"abc / %s\", " % name +
         "\"{#MQTTTOPIC}\": \"/devices/abc/controls/%s\"}]}') @ localhost:10051" % name,
         "send_to_zabbix: %sMetric('Zabbix server', " % ("FAIL: " if send_fail else "") +
         "'mqtt.lld.str_value[/devices/abc/controls/%s]', '%s') @ localhost:10051" % (name, value))
