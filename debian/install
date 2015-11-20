@@ -1,1 +1,2 @@
 wb-mqtt-zabbix.conf /etc
+wb-mqtt-zabbix.schema.json /etc/wb-mqtt-confed/schemas

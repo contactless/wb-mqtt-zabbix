@@ -9,4 +9,6 @@ setup(name='wb-mqtt-zabbix',
       author_email='ivan4th@gmail.com',
       url='https://github.com/evgeny-boger/wb-mqtt-zabbix',
       scripts=['bin/zabbix_bridge'],
-      packages=['wb_mqtt_zabbix'])
+      packages=['wb_mqtt_zabbix'],
+      include_package_data=True,
+      package_data={'data': '*'})

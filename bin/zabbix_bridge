@@ -2,15 +2,46 @@
 import click
 import paho.mqtt.client as mqtt
 import logging
-from wb_mqtt_zabbix import MQTTHandler, mqtt_dev_id
+from functools import wraps
+from wb_mqtt_zabbix import Deploy, MQTTHandler, mqtt_dev_id, ZabbixBridgeError
 
 CYCLE_DURATION = 1
 PORT_VALUE = click.IntRange(1, 65535)
 
-logging.basicConfig()
+logging.basicConfig(level=logging.WARN)
+
+log = logging.getLogger("zabbix_bridge")
 
 
-@click.command()
+def handle_errors(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        try:
+            f(*args, **kwargs)
+        except ZabbixBridgeError, e:
+            log.error(str(e))
+    return wrap
+
+
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
+@click.argument("url", "Server url")
+@click.option("-l", "--login", default="admin", help="Login")
+@click.option("-p", "--password", default="zabbix", help="Password")
+@click.option("--no-hosts", is_flag=True, help="Don't import hosts")
+@handle_errors
+def deploy(url, login, password, no_hosts):
+    deploy = Deploy(url, login, password)
+    deploy.deploy_templates()
+    if not no_hosts:
+        deploy.deploy_hosts()
+
+
+@cli.command()
 @click.option("-c", "--conf-file", type=click.File("rb"), help="Config file")
 @click.option("-d", "--debug", is_flag=True)
 @click.option("-h", "--mqtt-host", help="MQTT host")
@@ -23,7 +54,8 @@ logging.basicConfig()
 @click.option("-z", "--zabbix-host-name", help="Host name as registered in Zabbix frontend")
 @click.option("-i", "--min-interval", help="Minimum topic refresh interval")
 @click.option("-r", "--retry-interval", help="Retry interval")
-def zbridge(**kwargs):
+@handle_errors
+def run(**kwargs):
     """Zabbix bridge for Wiren Board."""
     client = mqtt.Client(mqtt_dev_id)
     handler = MQTTHandler(client, **{k: v for k, v in kwargs.items() if v is not None})
@@ -32,4 +64,4 @@ def zbridge(**kwargs):
         handler.process_periodic_retries()
 
 if __name__ == "__main__":
-    zbridge()
+    cli()
