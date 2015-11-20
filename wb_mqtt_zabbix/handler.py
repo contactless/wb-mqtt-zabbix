@@ -73,8 +73,9 @@ class Control(object):
             mqtt_name = topic_parts[2] + " / " + topic_parts[4]
         d = dict(data=[{"{#MQTTNAME}": mqtt_name,
                         "{#MQTTTOPIC}": self.topic}])
-        self._send("mqtt.lld_str" if self.is_str() else "mqtt.lld",
-                   json.dumps(d, sort_keys=True))
+        if not self._send("mqtt.lld_str" if self.is_str() else "mqtt.lld",
+                          json.dumps(d, sort_keys=True)):
+            log.error("failed to register %s" % self.topic)
 
     def send_value(self):
         key_fmt = "mqtt.lld.str_value[%s]" if self.is_str() else "mqtt.lld.value[%s]"
@@ -84,6 +85,7 @@ class Control(object):
         log.debug("SEND: %s = %s" % (self.topic, self.value))
         if not self._send(key_fmt % self.topic, self.value) and not self._value_sent:
             self._retry_pending = True
+            log.warn("failed to send %s = %s, will retry" % (self.topic, self.value))
         else:
             self._value_sent = True
             self._retry_pending = False
