@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "title": "Zabbix Bridge Configuration",
+  "description": "Specifies Zabbix Bridge Options",
+  "properties": {
+    "mqtt_host": {
+      "type": "string",
+      "title": "MQTT host",
+      "default": "localhost",
+      "minLength": 1,
+      "propertyOrder": 1
+    },
+    "mqtt_port": {
+      "type": "integer",
+      "title": "MQTT port",
+      "default": 1883,
+      "minimum": 1,
+      "maximum": 65535,
+      "propertyOrder": 2
+    },
+    "mqtt_topics": {
+      "type": "array",
+      "title": "List of MQTT topics",
+      "description": "Lists MQTT topics to subscribe to. Each topic should end with #",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "propertyOrder": 3
+    },
+    "mqtt_host": {
+      "type": "string",
+      "title": "MQTT host",
+      "default": "localhost",
+      "minLength": 1,
+      "propertyOrder": 4
+    },
+    "zabbix_server": {
+      "type": "string",
+      "title": "Zabbix server",
+      "minLength": 1,
+      "propertyOrder": 5
+    },
+    "zabbix_port": {
+      "type": "integer",
+      "title": "Zabbix port",
+      "minimum": 1,
+      "maximum": 65535,
+      "propertyOrder": 6
+    },
+    "zabbix_host_name": {
+      "type": "string",
+      "title": "Zabbix host name",
+      "description": "Host name as registered in Zabbix frontend",
+      "minLength": 1,
+      "propertyOrder": 7
+    },
+    "debug": {
+      "type": "boolean",
+      "title": "Enable debug logging",
+      "default": false,
+      "_format": "checkbox",
+      "propertyOrder": 8
+    },
+    "min_interval": {
+      "type": "integer",
+      "title": "Minimum topic refresh interval (s)",
+      "description": "Specify 0 to turn off rate limiting",
+      "default": 0,
+      "minimum": 0,
+      "propertyOrder": 9
+    },
+    "retry_interval": {
+      "type": "integer",
+      "title": "Retry interval (s)",
+      "description": "Specifies the number of seconds to wait before retrying failed send operation",
+      "default": 0,
+      "minimum": 1,
+      "propertyOrder": 10
+    }
+  },
+  "configFile": {
+    "path": "/etc/wb-mqtt-zabbix.conf",
+    "service": "wb-mqtt-zabbix"
+  }
+}
