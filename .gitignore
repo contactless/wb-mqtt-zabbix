@@ -1,3 +1,4 @@
+dh-virtualenv/
 debian/wb-mqtt-zabbix
 debian/*.log
 debian/*.debhelper
