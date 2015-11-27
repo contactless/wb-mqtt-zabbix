@@ -1,6 +1,6 @@
 import json
 import time
-import logging
+import logging.handlers
 import paho.mqtt.client as mqtt
 import wb_mqtt_zabbix.util as util
 import wb_mqtt_zabbix.zbxsend as zbxsend
@@ -92,15 +92,24 @@ class Control(object):
 
     def maybe_retry(self):
         if self._retry_pending:
+            log.debug("retrying sending %s = %s" % (self.topic, self.value))
             self.send_value()
 
 
 class MQTTHandler(object):
-    def __init__(self, client, debug=False, **kwargs):
+    def __init__(self, client, **kwargs):
         self.client = client
-        if debug:
-            kwargs["debug"] = True
         self.conf = HandlerConf(**kwargs)
+        if self.conf.syslog:
+            print "syslog"
+            handler = logging.handlers.SysLogHandler(
+                address="/dev/log",
+                facility=logging.handlers.SysLogHandler.LOG_DAEMON)
+            fmt = logging.Formatter(logging.BASIC_FORMAT)
+            handler.setFormatter(fmt)
+            logging.getLogger("").addHandler(handler)
+        else:
+            logging.basicConfig(level=logging.WARN)
         if self.conf.debug:
             logging.getLogger("").setLevel(logging.DEBUG)
         self.client.on_connect = self.on_connect
@@ -190,5 +199,4 @@ class MQTTHandler(object):
             return
         self._retry_pending = False
         for control in sorted(self._controls.values(), key=lambda c: c.topic):
-            log.debug("retrying sending %s = %s" % (control.topic, control.value))
             control.maybe_retry()

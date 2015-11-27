@@ -13,7 +13,8 @@ CONF = [("mqtt_host", "localhost"),
         ("zabbix_host_name", "Zabbix server"),
         ("min_interval", 0),
         ("retry_interval", 5),
-        ("debug", False)]
+        ("debug", False),
+        ("syslog", False)]
 CONF_NAMES = [x[0] for x in CONF]
 
 

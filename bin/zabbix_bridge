@@ -8,8 +8,6 @@ from wb_mqtt_zabbix import Deploy, MQTTHandler, mqtt_dev_id, ZabbixBridgeError
 CYCLE_DURATION = 1
 PORT_VALUE = click.IntRange(1, 65535)
 
-logging.basicConfig(level=logging.WARN)
-
 log = logging.getLogger("zabbix_bridge")
 
 
@@ -33,9 +31,13 @@ def cli():
 @click.option("-l", "--login", default="admin", help="Login")
 @click.option("-p", "--password", default="zabbix", help="Password")
 @click.option("--no-hosts", is_flag=True, help="Don't import hosts")
+@click.option("-d", "--debug", is_flag=True)
 @handle_errors
-def deploy(url, login, password, no_hosts):
+def deploy(url, login, password, no_hosts, debug):
     """Deploy Zabbix templates and hosts"""
+    logging.basicConfig(level=logging.WARN)
+    if debug:
+        logging.getLogger("wb_mqtt_zabbix.deploy").setLevel(logging.DEBUG)
     deploy = Deploy(url, login, password)
     deploy.deploy_templates()
     if not no_hosts:
@@ -55,6 +57,7 @@ def deploy(url, login, password, no_hosts):
 @click.option("-z", "--zabbix-host-name", help="Host name as registered in Zabbix frontend")
 @click.option("-i", "--min-interval", help="Minimum topic refresh interval")
 @click.option("-r", "--retry-interval", help="Retry interval")
+@click.option("-s", "--syslog", is_flag=True, help="Use syslog for logging")
 @handle_errors
 def run(**kwargs):
     """Run Zabbix bridge"""

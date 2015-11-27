@@ -76,6 +76,13 @@
       "default": 0,
       "minimum": 1,
       "propertyOrder": 10
+    },
+    "syslog": {
+      "type": "boolean",
+      "title": "Use syslog for logging",
+      "default": false,
+      "_format": "checkbox",
+      "propertyOrder": 11
     }
   },
   "configFile": {
