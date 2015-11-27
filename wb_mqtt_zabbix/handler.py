@@ -78,6 +78,18 @@ class Control(object):
             log.error("failed to register %s" % self.topic)
 
     def send_value(self):
+        if not self.is_str():
+            try:
+                if self.value.lower() == "nan":
+                    raise ValueError
+                float(self.value)
+            except ValueError:
+                # No warnings because this is rather common occurrence, e.g. 'nan'
+                log.debug("BADVAL: %s = %s" % (self.topic, self.value))
+                # not actually sent, but not worth retrying either
+                self._value_sent = True
+                self._retry_pending = False
+                return
         key_fmt = "mqtt.lld.str_value[%s]" if self.is_str() else "mqtt.lld.value[%s]"
         if not self._send_interval.check():
             log.debug("SKIP: %s = %s" % (self.topic, self.value))

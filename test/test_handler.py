@@ -201,3 +201,16 @@ def test_rate_limit():
     elapse(13)
     mqtt.recv("/devices/abc/controls/def", "42")
     check_send("def", "42")
+
+
+@with_handler
+def test_bad_numbers():
+    mqtt.recv("/devices/abc/controls/def", "123")
+    mqtt.recv("/devices/abc/controls/def/meta/type", "temperature")
+    mqtt.check()
+    mqtt.recv("/retain_hack", "1")
+    check_reg("def", "123")
+    mqtt.recv("/devices/abc/controls/def", "nan")
+    mqtt.recv("/devices/abc/controls/def", "45&123")
+    mqtt.recv("/devices/abc/controls/def", "123foobar")
+    mqtt.check()
