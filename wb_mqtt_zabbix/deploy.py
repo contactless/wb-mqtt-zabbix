@@ -38,8 +38,14 @@ class Deploy(object):
         self._request_api_version()
 
     def _request_api_version(self):
-        version_str = self.zapi.do_request(
-            self.zapi.json_obj('apiinfo.version', {})).get("result", "")
+        try:
+            # zabbix 2.2 requires auth for version request
+            version_str = self.zapi.do_request(
+                self.zapi.json_obj('apiinfo.version', {})).get("result", "")
+        except ZabbixAPIException:
+            # zabbix 2.4 fails if auth is passed for version request
+            version_str = self.zapi.do_request(
+                self.zapi.json_obj('apiinfo.version', {}, auth=False)).get("result", "")
         self.api_version = re.sub(r"(\d+\.\d+).\d+", r"\1", version_str)
         log.debug("Zabbix API version: %r", self.api_version)
 
