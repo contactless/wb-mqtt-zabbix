@@ -97,7 +97,7 @@ class Control(object):
         log.debug("SEND: %s = %s" % (self.topic, self.value))
         if not self._send(key_fmt % self.topic, self.value) and not self._value_sent:
             self._retry_pending = True
-            log.warn("failed to send %s = %s, will retry" % (self.topic, self.value))
+            log.warn("failed to send %s = %s" % (self.topic, self.value))
         else:
             self._value_sent = True
             self._retry_pending = False
