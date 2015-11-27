@@ -28,8 +28,15 @@ WB MQTT &lt;--> Zabbix bridge
     docker run -d -p 10051:10051 -p 8880:80 --name zabbix --cap-add SYS_PTRACE --security-opt apparmor:unconfined berngp/docker-zabbix
     ```
 
-    (--cap-add SYS_PTRACE --security-opt apparmor:unconfined здесь нужны т.к. этот имейдж использует
-    внутри monit)
+   (--cap-add SYS_PTRACE --security-opt apparmor:unconfined здесь нужны т.к. этот имейдж использует
+   внутри monit)
+
+   Вариант image с Zabbix 2.2 можно запустить следующим образом:
+
+    ```
+    docker run -d -p 10051:10051 -p 8880:80 --name zabbix --cap-add SYS_PTRACE --security-opt apparmor:unconfined ivan4th/zabbix-2.2
+    ```
+
 3. Открываем в браузере http://localhost:8880/zabbix/ Логин `admin`, пароль `zabbix`.
    Открыться может не сразу, контейнер стартует некоторое время (создаётся база).
    После того, как страница загрузится, убеждаемся в работоспособности zabbix.

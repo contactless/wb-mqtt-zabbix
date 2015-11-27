@@ -1,3 +1,10 @@
+wb-mqtt-zabbix (0.2) unstable; urgency=low
+
+  * Added deployment support for zabbix-2.2
+  * Support logging to syslog
+
+ -- Ivan Shvedunov <ivan4th@gmail.com>  Thu, 19 Nov 2015 09:16:36 +0300
+
 wb-mqtt-zabbix (0.1) unstable; urgency=low
 
   * Initial debianization
